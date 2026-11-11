@@ -1,85 +1,80 @@
 @extends('layouts.app')
-@section('title', 'Dashboard Mitra — GianyarPlanner')
+@section('title', 'Dashboard Mitra Gear — GianyarPlanner')
 
 @section('content')
-<h1 class="font-playfair text-4xl text-text tracking-tight mb-2">Dashboard Mitra</h1>
-<p class="text-muted text-[15px] mb-8">Selamat datang, {{ $user['nama'] }}.</p>
-
-{{-- Status Card --}}
-@php
-    $statusConfig = [
-        'belum_lengkap' => ['label' => 'Belum Lengkap', 'color' => 'bg-yellow-100 text-yellow-800', 'type' => 'warning'],
-        'menunggu_verifikasi' => ['label' => 'Menunggu Verifikasi', 'color' => 'bg-blue-100 text-blue-800', 'type' => 'warning'],
-        'aktif' => ['label' => 'Aktif', 'color' => 'bg-green-100 text-green-800', 'type' => 'success'],
-        'ditolak' => ['label' => 'Ditolak', 'color' => 'bg-red-100 text-red-800', 'type' => 'error'],
-    ];
-    $cfg = $statusConfig[$user['status']] ?? ['label' => $user['status'], 'color' => 'bg-gray-100 text-gray-800', 'type' => 'warning'];
-@endphp
-
-<x-card class="p-6 mb-6">
-    <div class="flex items-center justify-between">
+<div class="flex flex-col gap-8">
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-line">
         <div>
-            <h2 class="font-inter font-semibold text-text text-sm uppercase tracking-wider">Status Akun</h2>
-            <p class="text-muted text-sm mt-1">{{ ucfirst(str_replace('_', ' ', $user['role'])) }}</p>
+            <p class="font-inter font-semibold text-terracotta text-xs tracking-wider uppercase mb-1">AREA MITRA PERLENGKAPAN</p>
+            <h1 class="font-playfair text-3xl sm:text-4xl text-text">Dashboard Mitra Gear</h1>
+            <p class="text-muted text-sm mt-1">Usaha: <strong>{{ $mitra->nama_usaha }}</strong> · Pemilik: {{ $mitra->user->nama ?? $mitra->user->name }}</p>
         </div>
-        <span class="inline-block px-4 py-1.5 rounded-full text-xs font-medium {{ $cfg['color'] }}">{{ $cfg['label'] }}</span>
+        <div class="flex items-center gap-3">
+            <a href="{{ route('mitra.gears.create') }}" class="px-4 py-2 bg-forest text-white rounded text-xs font-inter font-semibold hover:bg-forest-dark transition-colors">
+                + Tambah Barang Gear
+            </a>
+            <a href="{{ route('mitra.orders') }}" class="px-4 py-2 border border-line text-text rounded text-xs font-inter font-semibold hover:border-forest transition-colors">
+                Pesanan Masuk ({{ $metrics['pending_orders'] }})
+            </a>
+        </div>
     </div>
-</x-card>
 
-@if($user['status'] === 'belum_lengkap')
-    <x-alert type="warning" class="mb-6">
-        Profil Anda belum lengkap. <a href="{{ route('mitra.profil') }}" class="underline font-medium">Lengkapi profil sekarang</a> untuk mengajukan verifikasi.
-    </x-alert>
-@elseif($user['status'] === 'ditolak')
-    <x-alert type="error" class="mb-6">
-        Profil Anda ditolak.
-        @if(!empty($user['notes']))
-            <br><strong>Catatan:</strong> {{ $user['notes'] }}
-        @endif
-        <br><a href="{{ route('mitra.profil') }}" class="underline font-medium">Ajukan ulang</a>
-    </x-alert>
-@elseif($user['status'] === 'menunggu_verifikasi')
-    <x-alert type="warning" class="mb-6">
-        Profil sedang diverifikasi oleh admin. Harap menunggu.
-    </x-alert>
-@endif
+    {{-- Metrics Cards --}}
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <x-card class="p-5">
+            <p class="text-xs font-inter font-semibold text-muted uppercase">Total Katalog Gear</p>
+            <p class="font-playfair text-3xl font-bold text-text mt-2">{{ $metrics['total_gears'] }}</p>
+            <p class="text-xs text-muted mt-1">{{ $metrics['active_gears'] }} barang aktif</p>
+        </x-card>
+        <x-card class="p-5">
+            <p class="text-xs font-inter font-semibold text-muted uppercase">Pesanan Menunggu</p>
+            <p class="font-playfair text-3xl font-bold text-terracotta mt-2">{{ $metrics['pending_orders'] }}</p>
+            <p class="text-xs text-muted mt-1">Perlu konfirmasi</p>
+        </x-card>
+        <x-card class="p-5">
+            <p class="text-xs font-inter font-semibold text-muted uppercase">Pesanan Selesai</p>
+            <p class="font-playfair text-3xl font-bold text-forest mt-2">{{ $metrics['completed_orders'] }}</p>
+            <p class="text-xs text-muted mt-1">Sewa & penjualan selesai</p>
+        </x-card>
+        <x-card class="p-5">
+            <p class="text-xs font-inter font-semibold text-muted uppercase">Rating Toko</p>
+            <p class="font-playfair text-3xl font-bold text-terracotta mt-2">★ {{ number_format($mitra->rating_avg, 1) }}</p>
+            <p class="text-xs text-muted mt-1">Berdasarkan ulasan</p>
+        </x-card>
+    </div>
 
-{{-- Profile Info --}}
-<x-card class="p-6">
-    <h2 class="font-inter font-semibold text-text text-sm uppercase tracking-wider mb-4">Informasi Profil</h2>
-    <div class="grid grid-cols-2 gap-4 text-sm">
-        <div>
-            <span class="text-muted">Nama</span>
-            <p class="font-medium text-text">{{ $user['nama'] }}</p>
+    {{-- Pesanan Gear Masuk Terbaru --}}
+    <x-card class="p-6">
+        <div class="flex items-center justify-between pb-4 mb-4 border-b border-line">
+            <h2 class="font-playfair text-xl text-text font-bold">Permintaan Sewa / Pembelian Terbaru</h2>
+            <a href="{{ route('mitra.orders') }}" class="text-xs text-forest hover:underline">Lihat Semua Pesanan →</a>
         </div>
-        <div>
-            <span class="text-muted">Email</span>
-            <p class="font-medium text-text">{{ $user['email'] }}</p>
-        </div>
-        <div>
-            <span class="text-muted">No. HP</span>
-            <p class="font-medium text-text">{{ $user['no_hp'] ?? '-' }}</p>
-        </div>
-        <div>
-            <span class="text-muted">Peran</span>
-            <p class="font-medium text-text">{{ ucfirst(str_replace('_', ' ', $user['role'])) }}</p>
-        </div>
-        @if(!empty($user['nama_usaha']))
-            <div>
-                <span class="text-muted">Nama Usaha</span>
-                <p class="font-medium text-text">{{ $user['nama_usaha'] }}</p>
+        @if($pendingOrders->isEmpty())
+            <p class="text-muted text-xs py-4 text-center">Belum ada pesanan gear baru yang menunggu konfirmasi.</p>
+        @else
+            <div class="flex flex-col divide-y divide-line/60">
+                @foreach($pendingOrders as $o)
+                    <div class="py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div>
+                            <p class="font-inter font-bold text-sm text-text">{{ $o->gear->nama_barang }} (x{{ $o->qty }})</p>
+                            <p class="text-xs text-muted">Wisatawan: {{ $o->pesanan->user->nama ?? 'Wisatawan' }} · Metode: {{ ucfirst(str_replace('_', ' ', $o->metode_serah)) }}</p>
+                            <p class="text-xs text-terracotta mt-0.5">Total: Rp {{ number_format($o->harga_snapshot * $o->qty * $o->jumlah_hari, 0, ',', '.') }} ({{ $o->jumlah_hari }} hari)</p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <form method="POST" action="{{ route('mitra.orders.respond', $o->id) }}" class="inline">
+                                @csrf
+                                <button type="submit" name="action" value="konfirmasi" class="px-3.5 py-1.5 rounded bg-forest text-white text-xs font-semibold hover:bg-forest-dark">
+                                    ✓ Konfirmasi Stok
+                                </button>
+                            </form>
+                            <a href="{{ route('mitra.orders') }}" class="px-3 py-1.5 rounded border border-line text-xs font-medium text-text hover:border-red-400">
+                                Rincian / Tolak
+                            </a>
+                        </div>
+                    </div>
+                @endforeach
             </div>
         @endif
-        @if(!empty($user['alamat']))
-            <div>
-                <span class="text-muted">Alamat</span>
-                <p class="font-medium text-text">{{ $user['alamat'] }}</p>
-            </div>
-        @endif
-    </div>
-
-    <div class="mt-6 pt-4 border-t border-line">
-        <a href="{{ route('mitra.profil') }}" class="text-forest text-sm font-medium hover:underline">Edit Profil →</a>
-    </div>
-</x-card>
+    </x-card>
+</div>
 @endsection

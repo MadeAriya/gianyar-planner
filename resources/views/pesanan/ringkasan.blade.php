@@ -63,9 +63,17 @@
             <h2 class="font-inter font-semibold text-text text-sm uppercase tracking-wider mb-4">Perlengkapan</h2>
             <div class="flex flex-col gap-3">
                 @foreach($gearDetails as $g)
-                    <div class="flex items-center justify-between text-sm">
-                        <span class="text-text">{{ $g['nama_barang'] }} × {{ $g['jumlah'] }}</span>
-                        <span class="font-semibold text-text">Rp {{ number_format($g['subtotal'], 0, ',', '.') }}</span>
+                    <div class="flex items-center justify-between text-sm pb-2 border-b border-line/40 last:border-0 last:pb-0">
+                        <div>
+                            <span class="text-text font-medium">{{ $g['nama_barang'] }} × {{ $g['jumlah'] }}</span>
+                            <span class="text-xs text-muted block">{{ $g['mitra_nama'] ?? 'Mitra Gianyar' }} · {{ ucfirst($g['tipe'] ?? 'Sewa') }}</span>
+                        </div>
+                        <div class="text-right">
+                            <span class="font-semibold text-text">Rp {{ number_format($g['subtotal'], 0, ',', '.') }}</span>
+                            @if(!empty($g['deposit_total']) && $g['deposit_total'] > 0)
+                                <span class="text-[10px] text-muted block">+ Deposit: Rp {{ number_format($g['deposit_total'], 0, ',', '.') }}</span>
+                            @endif
+                        </div>
                     </div>
                 @endforeach
             </div>

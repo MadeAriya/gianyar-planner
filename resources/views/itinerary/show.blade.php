@@ -157,71 +157,116 @@
 
             {{-- Tour Guide --}}
             <div class="mb-8">
-                <h3 class="font-inter font-semibold text-text text-[15px] mb-1">Pilih Tour Guide</h3>
-                <p class="text-muted text-xs mb-4">Pilih satu teman perjalanan lokal.</p>
+                <div class="flex items-center justify-between mb-1">
+                    <h3 class="font-inter font-semibold text-text text-[15px]">Pilih Tour Guide</h3>
+                    <span class="text-[10px] bg-forest/10 text-forest font-semibold px-2 py-0.5 rounded">Tersedia di Tanggal Ini</span>
+                </div>
+                <p class="text-muted text-xs mb-4">Pemandu lokal berlisensi yang cocok dengan rute Anda.</p>
 
                 <div class="flex flex-col gap-3">
-                    @foreach($guides as $guide)
-                        @php $isSelectedGuide = ($selectedGuide === $guide['id']); @endphp
-                        <x-card data-guide-card="{{ $guide['id'] }}"
+                    @forelse($guides as $guide)
+                        @php
+                            $gId = is_array($guide) ? $guide['id'] : $guide->id;
+                            $gNama = is_array($guide) ? $guide['nama'] : ($guide->user->nama ?? $guide->user->name ?? $guide->nama);
+                            $gFoto = is_array($guide) ? $guide['foto'] : $guide->foto;
+                            $gRating = is_array($guide) ? $guide['rating'] : $guide->rating_avg;
+                            $gTarif = is_array($guide) ? $guide['tarif'] : $guide->tarif_per_hari;
+                            $gBahasa = is_array($guide) ? $guide['bahasa'] : (is_array($guide->bahasa) ? implode(', ', $guide->bahasa) : $guide->bahasa);
+                            $gAlasan = is_object($guide) && !empty($guide->alasan_rekomendasi) ? $guide->alasan_rekomendasi : null;
+                            $isSelectedGuide = ($selectedGuide == $gId);
+                        @endphp
+                        <x-card data-guide-card="{{ $gId }}"
                             class="p-4 cursor-pointer transition-all {{ $isSelectedGuide ? 'border-forest ring-1 ring-forest' : 'hover:border-muted' }}">
-                            <div class="flex items-center justify-between gap-3">
-                                <div class="flex items-center gap-3">
-                                    <img src="{{ $guide['foto'] }}" alt="{{ $guide['nama'] }}" class="w-12 h-12 rounded-full object-cover flex-shrink-0" loading="lazy" />
+                            <div class="flex items-start justify-between gap-3">
+                                <div class="flex items-start gap-3">
+                                    <img src="{{ $gFoto }}" alt="{{ $gNama }}" class="w-12 h-12 rounded-full object-cover flex-shrink-0 mt-0.5" loading="lazy" />
                                     <div>
                                         <div class="flex items-center gap-2">
-                                            <p class="font-inter font-bold text-sm text-text">{{ $guide['nama'] }}</p>
+                                            <p class="font-inter font-bold text-sm text-text">{{ $gNama }}</p>
                                             <span class="guide-check text-forest text-xs {{ $isSelectedGuide ? '' : 'hidden' }}">✓</span>
                                         </div>
-                                        <p class="text-xs text-muted mt-0.5">★ {{ $guide['rating'] }} · {{ $guide['bahasa'] }}</p>
+                                        <p class="text-xs text-muted mt-0.5">★ {{ number_format((float)$gRating, 2) }} · {{ $gBahasa }}</p>
+                                        @if($gAlasan)
+                                            <p class="text-[10px] text-forest font-medium mt-1 leading-snug">💡 {{ $gAlasan }}</p>
+                                        @endif
                                     </div>
                                 </div>
-                                <div class="text-right">
-                                    <p class="font-inter font-bold text-xs text-text" data-tarif="{{ $guide['tarif'] }}">Rp {{ number_format($guide['tarif'], 0, ',', '.') }}</p>
+                                <div class="text-right flex-shrink-0">
+                                    <p class="font-inter font-bold text-xs text-text" data-tarif="{{ $gTarif }}">Rp {{ number_format($gTarif, 0, ',', '.') }}</p>
                                     <p class="text-[10px] text-muted">/ hari</p>
-                                    <button type="button" data-guide-select="{{ $guide['id'] }}"
+                                    <button type="button" data-guide-select="{{ $gId }}"
                                         class="mt-1 px-3 py-1 text-xs rounded border border-line hover:border-forest text-text cursor-pointer">
                                         {{ $isSelectedGuide ? 'Terpilih' : 'Pilih' }}
                                     </button>
                                 </div>
                             </div>
                         </x-card>
-                    @endforeach
+                    @empty
+                        <p class="text-xs text-muted italic">Tidak ada tour guide yang tersedia pada tanggal ini.</p>
+                    @endforelse
                 </div>
                 <input type="hidden" name="guide_id" id="selected-guide-input" value="{{ $selectedGuide ?? '' }}">
             </div>
 
             {{-- Sewa Perlengkapan --}}
             <div class="mb-8">
-                <h3 class="font-inter font-semibold text-text text-[15px] mb-1">Sewa Perlengkapan</h3>
-                <p class="text-muted text-xs mb-4">Pilih perlengkapan yang dibutuhkan.</p>
+                <div class="flex items-center justify-between mb-1">
+                    <h3 class="font-inter font-semibold text-text text-[15px]">Perlengkapan Rekomendasi</h3>
+                    <span class="text-[10px] bg-terracotta/10 text-terracotta font-semibold px-2 py-0.5 rounded">Sesuai Aktivitas</span>
+                </div>
+                <p class="text-muted text-xs mb-4">Diselaraskan otomatis dengan jenis destinasi rute Anda.</p>
 
                 <div class="flex flex-col gap-3">
-                    @foreach($gears as $gear)
-                        @php $gearQty = $selectedGears[$gear['id']] ?? 0; @endphp
-                        <x-card class="p-3" data-gear-row="{{ $gear['id'] }}">
-                            <div class="flex items-center justify-between gap-3">
-                                <div class="flex items-center gap-3">
-                                    <img src="{{ $gear['foto'] }}" alt="{{ $gear['nama_barang'] }}" class="w-10 h-10 rounded object-cover flex-shrink-0" loading="lazy" />
+                    @forelse($gears as $gear)
+                        @php
+                            $gearId = is_array($gear) ? $gear['id'] : $gear->id;
+                            $gearNama = is_array($gear) ? $gear['nama_barang'] : $gear->nama_barang;
+                            $gearFoto = is_array($gear) ? $gear['foto'] : $gear->foto;
+                            $gearHarga = is_array($gear) ? $gear['harga'] : $gear->harga;
+                            $gearTipe = is_array($gear) ? ($gear['tipe'] ?? 'sewa') : $gear->tipe;
+                            $gearStok = is_array($gear) ? ($gear['stok'] ?? 10) : $gear->stok_total;
+                            $gearQty = $selectedGears[$gearId] ?? 0;
+
+                            // Cari metadata rekomendasi jika ada
+                            $itemRec = collect($gearRecommendations['all_items'] ?? [])->firstWhere('gear.id', $gearId);
+                            $priority = $itemRec['priority'] ?? null;
+                            $alasan = $itemRec['alasan'] ?? null;
+                        @endphp
+                        <x-card class="p-3" data-gear-row="{{ $gearId }}">
+                            <div class="flex items-start justify-between gap-3">
+                                <div class="flex items-start gap-3">
+                                    <img src="{{ $gearFoto }}" alt="{{ $gearNama }}" class="w-10 h-10 rounded object-cover flex-shrink-0 mt-0.5" loading="lazy" />
                                     <div>
-                                        <p class="font-inter font-medium text-xs text-text">{{ $gear['nama_barang'] }}</p>
-                                        <p class="text-[11px] text-muted" data-gear-harga="{{ $gear['id'] }}" data-harga="{{ $gear['harga'] }}">
-                                            Rp {{ number_format($gear['harga'], 0, ',', '.') }} / hari
+                                        <div class="flex items-center gap-1.5 flex-wrap">
+                                            <p class="font-inter font-medium text-xs text-text">{{ $gearNama }}</p>
+                                            @if($priority === 'wajib')
+                                                <span class="px-1.5 py-0.2 bg-red-100 text-red-700 text-[9px] font-bold rounded">Wajib</span>
+                                            @elseif($priority === 'disarankan')
+                                                <span class="px-1.5 py-0.2 bg-amber-100 text-amber-800 text-[9px] font-bold rounded">Disarankan</span>
+                                            @endif
+                                        </div>
+                                        <p class="text-[11px] text-muted mt-0.5" data-gear-harga="{{ $gearId }}" data-harga="{{ $gearHarga }}">
+                                            Rp {{ number_format($gearHarga, 0, ',', '.') }} {{ $gearTipe === 'sewa' ? '/ hari' : '/ unit' }}
                                         </p>
+                                        @if($alasan)
+                                            <p class="text-[10px] text-muted mt-0.5 italic leading-tight">{{ $alasan }}</p>
+                                        @endif
                                     </div>
                                 </div>
-                                <div class="flex items-center gap-2">
-                                    <button type="button" data-gear-minus="{{ $gear['id'] }}"
+                                <div class="flex items-center gap-2 flex-shrink-0 mt-1">
+                                    <button type="button" data-gear-minus="{{ $gearId }}"
                                         class="w-7 h-7 rounded border border-line flex items-center justify-center text-xs hover:border-forest cursor-pointer select-none">−</button>
-                                    <input type="text" readonly name="gears[{{ $gear['id'] }}]" id="gear-qty-{{ $gear['id'] }}"
-                                        value="{{ $gearQty }}" data-max="{{ $gear['stok'] }}"
+                                    <input type="text" readonly name="gears[{{ $gearId }}]" id="gear-qty-{{ $gearId }}"
+                                        value="{{ $gearQty }}" data-max="{{ $gearStok }}"
                                         class="w-8 text-center text-xs font-inter font-bold bg-transparent outline-none">
-                                    <button type="button" data-gear-plus="{{ $gear['id'] }}"
+                                    <button type="button" data-gear-plus="{{ $gearId }}"
                                         class="w-7 h-7 rounded border border-line flex items-center justify-center text-xs hover:border-forest cursor-pointer select-none">+</button>
                                 </div>
                             </div>
                         </x-card>
-                    @endforeach
+                    @empty
+                        <p class="text-xs text-muted italic">Tidak ada perlengkapan khusus yang dibutuhkan.</p>
+                    @endforelse
                 </div>
             </div>
 

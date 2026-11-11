@@ -2,16 +2,20 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\GearRecommendationService;
+use App\Services\GuideMatchingService;
 use App\Services\ItineraryGenerator;
-use App\Support\DummyData;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class ItineraryController extends Controller
 {
-    public function show(ItineraryGenerator $generator): View|RedirectResponse
-    {
+    public function show(
+        ItineraryGenerator $generator,
+        GuideMatchingService $guideMatcher,
+        GearRecommendationService $gearService
+    ): View|RedirectResponse {
         $preferensi = session('preferensi');
         if (! $preferensi) {
             return redirect()->route('preferensi.create')->with('error', 'Silakan isi preferensi terlebih dahulu.');
@@ -24,9 +28,13 @@ class ItineraryController extends Controller
         }
         $itinerary = session('itinerary');
 
-        // TODO: ganti dengan Eloquent
-        $guides = collect(DummyData::tourGuide())->where('is_available', true)->values();
-        $gears = collect(DummyData::travelGear())->values();
+        // Rekomendasi Tour Guide dinamis berdasarkan itinerary & ketersediaan tanggal
+        $guides = $guideMatcher->getRecommendations($itinerary, $preferensi, 6);
+
+        // Rekomendasi Travel Gear dinamis berdasarkan konteks destinasi
+        $gearRecommendations = $gearService->getRecommendations($itinerary, $preferensi);
+        $gears = collect($gearRecommendations['all_items'])->pluck('gear')->unique('id')->values();
+
         $bundleDiscount = config('gianyar.bundle_discount', 0.10);
         $selectedGuide = session('selected_guide');
         $selectedGears = session('selected_gears', []);
@@ -37,6 +45,7 @@ class ItineraryController extends Controller
             'preferensi',
             'guides',
             'gears',
+            'gearRecommendations',
             'bundleDiscount',
             'selectedGuide',
             'selectedGears',
@@ -72,8 +81,14 @@ class ItineraryController extends Controller
         return redirect()->route('itinerary.show')->with('success', 'Itinerary berhasil disimpan.');
     }
 
-    public function saveAddons(Request $request): RedirectResponse
-    {
+    public function saveAddons(
+        Request $request,
+        GuideMatchingService $guideMatcher,
+        GearRecommendationService $gearService
+    ): RedirectResponse {
+        $itinerary = session('itinerary', []);
+        $preferensi = session('preferensi', []);
+
         if ($request->filled('guide_id')) {
             session(['selected_guide' => (int) $request->guide_id]);
         }
@@ -91,17 +106,24 @@ class ItineraryController extends Controller
 
         if ($request->has('bundle')) {
             session(['is_bundle' => true]);
+
+            // Pilih guide terbaik jika belum dipilih
             if (! session('selected_guide')) {
-                $first = collect(DummyData::tourGuide())->firstWhere('is_available', true);
-                if ($first) {
-                    session(['selected_guide' => $first['id']]);
+                $recommendedGuides = $guideMatcher->getRecommendations($itinerary, $preferensi, 1);
+                if ($recommendedGuides->isNotEmpty()) {
+                    session(['selected_guide' => $recommendedGuides->first()->id]);
                 }
             }
+
+            // Pilih 3 gear rekomendasi utama
+            $gearRec = $gearService->getRecommendations($itinerary, $preferensi);
             $bundleGears = [];
-            foreach (array_slice(DummyData::travelGear(), 0, 3) as $gear) {
-                $bundleGears[$gear['id']] = 1;
+            foreach (array_slice($gearRec['all_items'], 0, 3) as $item) {
+                $bundleGears[$item['gear']->id] = $item['qty'];
             }
-            session(['selected_gears' => $bundleGears]);
+            if (! empty($bundleGears)) {
+                session(['selected_gears' => $bundleGears]);
+            }
         }
 
         return redirect()->route('itinerary.show')->with('success', 'Add-ons diperbarui.');

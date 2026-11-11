@@ -30,12 +30,23 @@
                     <p class="font-medium text-sm">{{ session('user.nama') }}</p>
                     <p class="text-xs text-muted">{{ session('user.email') }}</p>
                 </div>
-                @if(session('user.role') === 'wisatawan')
-                    <a href="{{ route('pesanan.index') }}" class="block px-4 py-2 text-sm hover:bg-sand">Pesanan Saya</a>
-                @elseif(in_array(session('user.role'), ['tour_guide', 'penyedia_gear']))
+                @php
+                    $userRole = Auth::user()->role ?? session('user.role');
+                @endphp
+                @if($userRole === 'super_admin')
+                    <a href="{{ route('admin.dashboard') }}" class="block px-4 py-2 text-sm hover:bg-sand">Backoffice Admin</a>
+                    <a href="{{ route('admin.guides.index') }}" class="block px-4 py-2 text-sm hover:bg-sand">Verifikasi Guide</a>
+                    <a href="{{ route('admin.mitras.index') }}" class="block px-4 py-2 text-sm hover:bg-sand">Verifikasi Mitra</a>
+                @elseif($userRole === 'tour_guide')
+                    <a href="{{ route('guide.dashboard') }}" class="block px-4 py-2 text-sm hover:bg-sand">Dashboard Guide</a>
+                    <a href="{{ route('guide.kalender') }}" class="block px-4 py-2 text-sm hover:bg-sand">Kalender Ketersediaan</a>
+                    <a href="{{ route('guide.bookings') }}" class="block px-4 py-2 text-sm hover:bg-sand">Permintaan Booking</a>
+                @elseif($userRole === 'mitra')
                     <a href="{{ route('mitra.dashboard') }}" class="block px-4 py-2 text-sm hover:bg-sand">Dashboard Mitra</a>
-                @elseif(session('user.role') === 'admin')
-                    <a href="{{ route('admin.mitra') }}" class="block px-4 py-2 text-sm hover:bg-sand">Verifikasi Mitra</a>
+                    <a href="{{ route('mitra.gears.index') }}" class="block px-4 py-2 text-sm hover:bg-sand">Katalog Gear</a>
+                    <a href="{{ route('mitra.orders') }}" class="block px-4 py-2 text-sm hover:bg-sand">Pesanan Masuk</a>
+                @else
+                    <a href="{{ route('pesanan.index') }}" class="block px-4 py-2 text-sm hover:bg-sand">Pesanan Saya</a>
                 @endif
                 <form method="POST" action="{{ route('logout') }}">
                     @csrf

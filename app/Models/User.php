@@ -89,7 +89,7 @@ class User extends Authenticatable
     // Role Helper Methods
     public function isSuperAdmin(): bool
     {
-        return in_array($this->role, ['super_admin', 'admin']);
+        return $this->role === 'super_admin';
     }
 
     public function isTourGuide(): bool
@@ -99,28 +99,33 @@ class User extends Authenticatable
 
     public function isMitra(): bool
     {
-        return in_array($this->role, ['mitra', 'penyedia_gear']);
+        return $this->role === 'mitra';
+    }
+
+    public function isUser(): bool
+    {
+        return $this->role === 'user';
     }
 
     public function isWisatawan(): bool
     {
-        return in_array($this->role, ['user', 'wisatawan']);
+        return $this->role === 'user';
     }
 
     // Status Helper Methods
     public function isActive(): bool
     {
-        return in_array($this->status, ['active', 'aktif']);
+        return $this->status === 'active';
     }
 
     public function isPending(): bool
     {
-        return in_array($this->status, ['pending', 'belum_lengkap']);
+        return $this->status === 'pending';
     }
 
     public function isRejected(): bool
     {
-        return in_array($this->status, ['rejected', 'ditolak']);
+        return $this->status === 'rejected';
     }
 
     public function isSuspended(): bool
