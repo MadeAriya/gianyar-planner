@@ -43,6 +43,16 @@ class Itinerary extends Model
         return $this->hasOne(Pesanan::class);
     }
 
+    public function exclusions(): HasMany
+    {
+        return $this->hasMany(ItineraryExclusion::class);
+    }
+
+    public function revisions(): HasMany
+    {
+        return $this->hasMany(ItineraryRevision::class)->orderBy('versi', 'asc');
+    }
+
     public function isLocked(): bool
     {
         return $this->status === 'terkunci';

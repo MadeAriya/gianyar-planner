@@ -3,6 +3,7 @@
 use Illuminate\Contracts\Console\Kernel;
 use Tests\Feature\ConcurrencyGuideBookingTest;
 use Tests\Feature\GearRecommendationTest;
+use Tests\Feature\ItineraryEditTest;
 use Tests\Feature\RbacAndAuthorizationTest;
 use Tests\Feature\StateMachineTest;
 
@@ -52,10 +53,22 @@ $results[] = $rbac->testAccountLifecycleMiddleware();
 $results[] = $rbac->testPrivateDocumentAccess();
 
 // 4. Gear Recommendation & Resilience Tests
-echo "[4/4] Menjalankan Uji Rekomendasi Gear & Mitigasi Stok...\n";
+echo "[4/5] Menjalankan Uji Rekomendasi Gear & Mitigasi Stok...\n";
 $gearTest = new GearRecommendationTest;
 $results[] = $gearTest->testItinerarySpecificRecommendations();
 $results[] = $gearTest->testStockExhaustionAlternativeMitigation();
+
+// 5. Itinerary Interactive Editing & Smart Swap Tests (Fase G)
+echo "[5/5] Menjalankan Uji Sistem Edit Itinerary & Smart Swap (Fase G)...\n";
+$itineraryEditTest = new ItineraryEditTest;
+$results[] = $itineraryEditTest->testSwapDistributionAndConstraintProof();
+$results[] = $itineraryEditTest->testReasonDependentScoring();
+$results[] = $itineraryEditTest->test200StepInvariantFuzzTest();
+$results[] = $itineraryEditTest->testReloadStabilityAndPartialRegenerate();
+$results[] = $itineraryEditTest->testOptimisticLockingConcurrency();
+$results[] = $itineraryEditTest->testAuthorizationAndLockedProtection();
+$results[] = $itineraryEditTest->testGearAndGuideSynchronization();
+$results[] = $itineraryEditTest->testRegressionCompatibility();
 
 $elapsed = round(microtime(true) - $startTime, 2);
 

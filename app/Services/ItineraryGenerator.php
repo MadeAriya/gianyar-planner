@@ -3,11 +3,14 @@
 namespace App\Services;
 
 use App\Models\Destinasi;
+use App\Services\Concerns\ItineraryMathAndScoring;
 use App\Support\DummyData;
 use Carbon\Carbon;
 
 class ItineraryGenerator
 {
+    use ItineraryMathAndScoring;
+
     /**
      * Waktu default untuk 3 slot kegiatan harian.
      *
@@ -22,16 +25,6 @@ class ItineraryGenerator
     /**
      * Generate itinerary dinamis, variatif, dan terstruktur berdasarkan preferensi wisatawan.
      *
-     * Pipeline Algoritma:
-     * 1. Category Normalization & Preference Expansion
-     * 2. Candidate Matching & Multi-factor Scoring (kategori, tipe traveler, tingkat fisik, popularitas)
-     * 3. Day-by-Day Geoclustering & Anchor Selection
-     * 4. Haversine Distance Calculation & Proximity Optimization
-     * 5. Slot Time-of-Day Suitability (Pagi/Siang/Sore)
-     * 6. Diversity Penalty (MMR) untuk mencegah repetisi jenis wisata di hari yang sama
-     * 7. Weighted Random Sampling over Top-K dengan Jitter Noise untuk variasi tinggi
-     * 8. Human-friendly "Alasan Rekomendasi" & Travel Time Estimation
-     *
      * @param  array{tgl_berangkat: string, tgl_pulang: string, durasi: int, jumlah_orang: int, kategori: string[], tipe_traveler?: string, tingkat_fisik?: string}  $preferensi
      * @param  int|null  $seed  Seed angka acak untuk reproducibility (opsional)
      * @return array{tgl_berangkat: string, tgl_pulang: string, durasi: int, jumlah_orang: int, kategori: string[], status: string, tipe_traveler: string, tingkat_fisik: string, seed: int, jadwal: array}
@@ -42,8 +35,6 @@ class ItineraryGenerator
         mt_srand($currentSeed);
 
         $durasi = max(1, min(7, (int) ($preferensi['durasi'] ?? 1)));
-        $neededSlots = $durasi * config('gianyar.itinerary.slots_per_hari', 3);
-
         $tipeTraveler = $preferensi['tipe_traveler'] ?? 'couple';
         $tingkatFisik = $preferensi['tingkat_fisik'] ?? 'sedang';
 
@@ -184,6 +175,9 @@ class ItineraryGenerator
                 $alasan = $this->buatAlasanRekomendasi($selectedDest, $targetSlot, $jarakKm, $tipeTraveler, $terpilih['is_primary']);
 
                 $dayItems[] = [
+                    'id' => $selectedDest['id'],
+                    'destinasi_id' => $selectedDest['id'],
+                    'slug' => $selectedDest['slug'] ?? '',
                     'slot' => $targetSlot,
                     'slot_label' => $slotMeta['label'],
                     'jam_mulai' => $jamMulaiFormatted,
@@ -192,6 +186,8 @@ class ItineraryGenerator
                     'jarak_dari_sebelumnya_km' => $jarakKm,
                     'waktu_tempuh_menit' => $waktuTempuhMenit,
                     'alasan' => $alasan,
+                    'subkategori' => $selectedDest['subkategori'] ?? [$selectedDest['kategori'] ?? ''],
+                    'kecamatan' => $selectedDest['kecamatan'] ?? 'Gianyar',
                     'destinasi' => $selectedDest,
                 ];
 
@@ -216,195 +212,10 @@ class ItineraryGenerator
             'tingkat_fisik' => $tingkatFisik,
             'status' => 'draft',
             'seed' => $currentSeed,
+            'seed_dasar' => $currentSeed,
+            'versi' => 1,
+            'jumlah_edit' => 0,
             'jadwal' => $jadwal,
         ];
-    }
-
-    /**
-     * Normalisasi kategori input (bisa berupa subkategori spesifik atau kategori umum seperti alam/budaya).
-     *
-     * @param  string[]  $input
-     * @return string[]
-     */
-    protected function normalisasiSubkategori(array $input): array
-    {
-        $result = [];
-        $katList = DummyData::kategoriList();
-
-        foreach ($input as $item) {
-            // Jika user memilih kategori level-1 (misal 'alam', 'budaya', 'seni')
-            if (isset($katList[$item])) {
-                foreach (array_keys($katList[$item]['subkategori']) as $subKey) {
-                    $result[] = $subKey;
-                }
-            } else {
-                $result[] = $item;
-            }
-        }
-
-        return array_values(array_unique($result));
-    }
-
-    /**
-     * Memeriksa apakah destinasi cocok dengan subkategori pilihan.
-     *
-     * @param  array<string, mixed>  $dest
-     * @param  string[]  $selectedSubkats
-     */
-    protected function isCocokKategori(array $dest, array $selectedSubkats): bool
-    {
-        if (empty($selectedSubkats)) {
-            return true;
-        }
-
-        $destSubkats = (array) ($dest['subkategori'] ?? [$dest['kategori'] ?? '']);
-        $katUtama = $dest['kategori_utama'] ?? '';
-
-        return count(array_intersect($destSubkats, $selectedSubkats)) > 0
-            || in_array($katUtama, $selectedSubkats);
-    }
-
-    /**
-     * Hitung skor dasar destinasi berdasarkan kecocokan subkategori, profil traveler, dan tingkat fisik.
-     *
-     * @param  array<string, mixed>  $dest
-     * @param  string[]  $selectedSubkats
-     */
-    protected function hitungSkorDasar(array $dest, array $selectedSubkats, string $tipeTraveler, string $tingkatFisik): float
-    {
-        $skor = 10.0; // Base score
-
-        // 1. Kesesuaian Kategori (Bobot ~35-40)
-        if ($this->isCocokKategori($dest, $selectedSubkats)) {
-            $skor += (float) config('gianyar.itinerary.bobot.kategori', 35);
-        }
-
-        // 2. Kesesuaian Tipe Traveler (solo, couple, family, group)
-        $cocokTraveler = (array) ($dest['cocok_untuk'] ?? []);
-        if (in_array($tipeTraveler, $cocokTraveler)) {
-            $skor += (float) config('gianyar.itinerary.bobot.cocok_traveler', 10);
-        }
-
-        // 3. Kesesuaian Tingkat Fisik
-        $destFisik = $dest['tingkat_fisik'] ?? 'sedang';
-        $bobotFisik = (float) config('gianyar.itinerary.bobot.fisik', 10);
-        if ($tingkatFisik === 'santai') {
-            if ($destFisik === 'mudah') {
-                $skor += $bobotFisik;
-            } elseif ($destFisik === 'sulit') {
-                $skor -= 8;
-            }
-        } elseif ($tingkatFisik === 'aktif') {
-            if ($destFisik === 'sedang' || $destFisik === 'sulit') {
-                $skor += $bobotFisik;
-            }
-        } else {
-            // sedang
-            if ($destFisik === 'sedang' || $destFisik === 'mudah') {
-                $skor += ($bobotFisik * 0.8);
-            }
-        }
-
-        // 4. Popularitas (1-10) -> skala hingga 10 poin
-        $pop = (float) ($dest['popularitas'] ?? 5);
-        $skor += ($pop / 10.0) * (float) config('gianyar.itinerary.bobot.popularitas', 10);
-
-        return $skor;
-    }
-
-    /**
-     * Weighted Random Selection: Memilih satu kandidat secara proporsional terhadap skornya.
-     *
-     * @param  array<int, array{destinasi: array, skor: float, is_primary: bool}>  $candidates
-     * @return array{destinasi: array, skor: float, is_primary: bool}
-     */
-    protected function pilihWeightedRandom(array $candidates): array
-    {
-        if (count($candidates) === 1) {
-            return $candidates[0];
-        }
-
-        $totalWeight = array_sum(array_column($candidates, 'skor'));
-        if ($totalWeight <= 0) {
-            return $candidates[array_rand($candidates)];
-        }
-
-        $rand = (mt_rand(1, 10000) / 10000.0) * $totalWeight;
-        $cumulative = 0.0;
-
-        foreach ($candidates as $cand) {
-            $cumulative += $cand['skor'];
-            if ($rand <= $cumulative) {
-                return $cand;
-            }
-        }
-
-        return $candidates[count($candidates) - 1];
-    }
-
-    /**
-     * Hitung jarak Haversine antara dua koordinat geografis (dalam km).
-     */
-    public function haversineKm(float $lat1, float $lon1, float $lat2, float $lon2): float
-    {
-        $earthRadius = 6371; // km
-        $dLat = deg2rad($lat2 - $lat1);
-        $dLon = deg2rad($lon2 - $lon1);
-
-        $a = sin($dLat / 2) * sin($dLat / 2) +
-            cos(deg2rad($lat1)) * cos(deg2rad($lat2)) *
-            sin($dLon / 2) * sin($dLon / 2);
-
-        $c = 2 * atan2(sqrt($a), sqrt(1 - $a));
-
-        return $earthRadius * $c;
-    }
-
-    /**
-     * Merangkai kalimat alasan rekomendasi yang natural untuk UI itinerary.
-     *
-     * @param  array<string, mixed>  $dest
-     */
-    protected function buatAlasanRekomendasi(
-        array $dest,
-        string $slot,
-        ?float $jarakKm,
-        string $tipeTraveler,
-        bool $isPrimary
-    ): string {
-        $nama = $dest['nama_destinasi'] ?? $dest['nama'];
-
-        if ($slot === 'pagi') {
-            if ($dest['kategori_utama'] === 'alam' || in_array('sawah', (array) ($dest['subkategori'] ?? []))) {
-                return "Suasana pagi hari yang sejuk dan cerah memberikan pencahayaan alami terbaik di {$nama}.";
-            }
-            if (in_array('melukat', (array) ($dest['subkategori'] ?? []))) {
-                return 'Pagi hari adalah waktu paling hening dan sakral untuk prosesi pembersihan diri (melukat).';
-            }
-
-            return 'Waktu pagi ideal untuk memulai hari sebelum lokasi dipadati pengunjung.';
-        }
-
-        if ($slot === 'siang') {
-            if ($jarakKm !== null && $jarakKm <= 8.0) {
-                return "Hanya {$jarakKm} km dari destinasi sebelumnya, efisien rute dan cocok untuk rehat siang.";
-            }
-            if ($dest['kategori_utama'] === 'kuliner') {
-                return 'Pilihan santap siang istimewa dengan cita rasa autentik khas Gianyar.';
-            }
-
-            return 'Lokasi nyaman untuk menikmati siang hari dengan keteduhan pepohonan tropis.';
-        }
-
-        // Sore
-        if (in_array('sunset', (array) ($dest['tags'] ?? [])) || in_array('pantai', (array) ($dest['subkategori'] ?? []))) {
-            return 'Spot sempurna menyambut senja dan pemandangan matahari terbenam yang memukau.';
-        }
-
-        if ($jarakKm !== null && $jarakKm <= 10.0) {
-            return "Rute searah perjalanan sore (berjarak {$jarakKm} km), menutup petualangan hari ini dengan santai.";
-        }
-
-        return 'Penutup perjalanan hari ini yang berkesan untuk rileks bersama.';
     }
 }

@@ -5,6 +5,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DokumenController;
 use App\Http\Controllers\GuideDashboardController;
 use App\Http\Controllers\ItineraryController;
+use App\Http\Controllers\ItineraryEditController;
 use App\Http\Controllers\MitraDashboardController;
 use App\Http\Controllers\PesananController;
 use App\Http\Controllers\PreferensiController;
@@ -47,6 +48,25 @@ Route::middleware(['auth.check', 'role:user', 'active.account'])->group(function
     Route::get('/pesanan/ringkasan', [PesananController::class, 'ringkasan'])->name('pesanan.ringkasan');
     Route::post('/pesanan', [PesananController::class, 'store'])->name('pesanan.store');
     Route::get('/pesanan', [PesananController::class, 'index'])->name('pesanan.index');
+
+    // Itinerary Edit RESTful Endpoints (Smart Swap, Lock, Reorder, Undo, Redo, Blacklist)
+    Route::prefix('itineraries/{id}')->name('itineraries.')->group(function () {
+        Route::post('/items/{itemId}/replace-suggestions', [ItineraryEditController::class, 'replaceSuggestions'])->name('replace-suggestions');
+        Route::patch('/items/{itemId}/replace', [ItineraryEditController::class, 'replace'])->name('replace');
+        Route::delete('/items/{itemId}', [ItineraryEditController::class, 'destroy'])->name('items.destroy');
+        Route::post('/items', [ItineraryEditController::class, 'store'])->name('items.store');
+        Route::patch('/items/reorder', [ItineraryEditController::class, 'reorder'])->name('items.reorder');
+        Route::patch('/items/{itemId}/lock', [ItineraryEditController::class, 'lock'])->name('items.lock');
+        Route::patch('/items/{itemId}/duration', [ItineraryEditController::class, 'updateDuration'])->name('items.duration');
+        Route::post('/regenerate-partial', [ItineraryEditController::class, 'regenerate'])->name('regenerate-partial');
+        Route::post('/undo', [ItineraryEditController::class, 'undo'])->name('undo');
+        Route::post('/redo', [ItineraryEditController::class, 'redo'])->name('redo');
+        Route::post('/reset', [ItineraryEditController::class, 'reset'])->name('reset');
+        Route::get('/exclusions', [ItineraryEditController::class, 'getExclusions'])->name('exclusions.index');
+        Route::delete('/exclusions/{destinasiId}', [ItineraryEditController::class, 'removeExclusion'])->name('exclusions.destroy');
+        Route::post('/duplicate', [ItineraryEditController::class, 'duplicate'])->name('duplicate');
+        Route::get('/catalog', [ItineraryEditController::class, 'searchCatalog'])->name('catalog.search');
+    });
 });
 
 // Tour Guide Routes (Aktif)
