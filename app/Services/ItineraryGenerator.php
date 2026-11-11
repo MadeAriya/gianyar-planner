@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Destinasi;
 use App\Support\DummyData;
 use Carbon\Carbon;
 
@@ -35,7 +36,6 @@ class ItineraryGenerator
      * @param  int|null  $seed  Seed angka acak untuk reproducibility (opsional)
      * @return array{tgl_berangkat: string, tgl_pulang: string, durasi: int, jumlah_orang: int, kategori: string[], status: string, tipe_traveler: string, tingkat_fisik: string, seed: int, jadwal: array}
      */
-    // TODO: ganti dengan Eloquent
     public function generate(array $preferensi, ?int $seed = null): array
     {
         $currentSeed = $seed ?? mt_rand(100000, 999999);
@@ -47,7 +47,13 @@ class ItineraryGenerator
         $tipeTraveler = $preferensi['tipe_traveler'] ?? 'couple';
         $tingkatFisik = $preferensi['tingkat_fisik'] ?? 'sedang';
 
-        $allDestinasi = DummyData::destinasi();
+        // Baca destinasi dari model Database Destinasi (fallback ke DummyData jika DB kosong)
+        try {
+            $dbDestinasi = Destinasi::where('is_active', true)->get()->toArray();
+            $allDestinasi = ! empty($dbDestinasi) ? $dbDestinasi : DummyData::destinasi();
+        } catch (\Throwable $e) {
+            $allDestinasi = DummyData::destinasi();
+        }
         $selectedSubkats = $this->normalisasiSubkategori($preferensi['kategori'] ?? []);
 
         // 1. Scoring awal tiap destinasi berdasarkan kecocokan preferensi dasar
