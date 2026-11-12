@@ -3,9 +3,9 @@
 3. Buka folder tempat kalian mau naruh project laravelnya trus klik kanan di tempat kosong, klik open in terminal
 4. Di terminal ketik "git clone https://github.com/MadeAriya/gianyar-planner"
 5. Setelah selesai ketik di terminal "cd gianyar-planner" ini buat masuk ke folder projeknya
-6. Setelah itu ketik di terminal yang sama "composer install", tunggu sampai selesai
-7. Setelah itu ketik di terminal yang sama "php artisan key:generate", tunggu sampai selesai
-8. Setelah itu copy file .env yang aku kasih di wa taruh di folder gianyar-planner
+6. Setelah itu copy file .env yang aku kasih di wa taruh di folder gianyar-planner
+7. Setelah itu ketik di terminal yang sama "composer install", tunggu sampai selesai
+8. Setelah itu ketik di terminal yang sama "php artisan key:generate", tunggu sampai selesai
 9. Setelah itu buka terminal yang sama lagi ketik "php artisan migrate", tunggu sampai selesai
 10. Setelah itu masih di terminal yang sama ketik "npm install", tunggu sampai selesai
 11. Setelah itu masih di terminal yang sama ketik "npm run build", tunggu sampai selesai
